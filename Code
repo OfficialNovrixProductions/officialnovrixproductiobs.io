@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flappy Fox</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    canvas {
+      background: linear-gradient(to top, #5dc0ff, #ffffff);
+      display: block;
+      margin: 0 auto;
+    }
+    #leaderboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="480" height="640"></canvas>
+  <div id="leaderboard">
+    <h3>Leaderboard</h3>
+    <ol id="scores"></ol>
+  </div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let fox = {
+      x: 50,
+      y: 150,
+      width: 40,
+      height: 40,
+      gravity: 0.6,
+      lift: -10,
+      velocity: 0
+    };
+
+    let pipes = [];
+    let frame = 0;
+    let score = 0;
+    let gameOver = false;
+
+    function drawFox() {
+      ctx.fillStyle = 'orange';
+      ctx.fillRect(fox.x, fox.y, fox.width, fox.height);
+    }
+
+    function drawPipe(pipe) {
+      ctx.fillStyle = 'green';
+      ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+      ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipe.width, pipe.bottom);
+    }
+
+    function update() {
+      if (gameOver) return;
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Fox
+      fox.velocity += fox.gravity;
+      fox.y += fox.velocity;
+      drawFox();
+
+      // Pipes
+      if (frame % 90 === 0) {
+        let top = Math.random() * (canvas.height / 2);
+        let bottom = canvas.height - top - 150;
+        pipes.push({ x: canvas.width, top: top, bottom: bottom, width: 50 });
+      }
+
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        let p = pipes[i];
+        p.x -= 2;
+        drawPipe(p);
+
+        // Collision
+        if (
+          fox.x < p.x + p.width &&
+          fox.x + fox.width > p.x &&
+          (fox.y < p.top || fox.y + fox.height > canvas.height - p.bottom)
+        ) {
+          endGame();
+        }
+
+        // Score
+        if (p.x + p.width === fox.x) {
+          score++;
+        }
+
+        // Remove pipe
+        if (p.x + p.width < 0) {
+          pipes.splice(i, 1);
+        }
+      }
+
+      if (fox.y + fox.height > canvas.height) {
+        endGame();
+      }
+
+      // Score display
+      ctx.fillStyle = 'black';
+      ctx.font = '24px Arial';
+      ctx.fillText('Score: ' + score, 10, 30);
+
+      requestAnimationFrame(update);
+    }
+
+    function endGame() {
+      gameOver = true;
+      const name = prompt("Game over! Enter your name:");
+      if (name) {
+        const existing = JSON.parse(localStorage.getItem('flappyFoxScores') || '[]');
+        existing.push({ name, score });
+        existing.sort((a, b) => b.score - a.score);
+        localStorage.setItem('flappyFoxScores', JSON.stringify(existing.slice(0, 5)));
+        showLeaderboard();
+      }
+    }
+
+    function showLeaderboard() {
+      const scores = JSON.parse(localStorage.getItem('flappyFoxScores') || '[]');
+      const scoresList = document.getElementById('scores');
+      scoresList.innerHTML = '';
+      scores.forEach(entry => {
+        const li = document.createElement('li');
+        li.textContent = `${entry.name}: ${entry.score}`;
+        scoresList.appendChild(li);
+      });
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        fox.velocity = fox.lift;
+        if (gameOver) {
+          location.reload();
+        }
+      }
+    });
+
+    showLeaderboard();
+    update();
+  </script>
+</body>
+</html>
